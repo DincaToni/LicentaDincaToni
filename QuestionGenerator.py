@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class QuestionGenerator(nn.Module):
     def __init__(self, dictionarySize, embeddingDim, hiddenSize, numOfLayers):
@@ -33,17 +34,17 @@ class QuestionGenerator(nn.Module):
         print("testing output: ", output)
 
         return output
-    def generate(self, inputs, maxLen = 20):
+    def generate(self, inputs, maxLen = 1, temperature = 1.0):#!!!!!!!!!Don't forget to set bavk to 20 after testing
+        #temperature regrleaza cat de mare e diferenta dintre procentaje
         #functia va genera intrebarea pe baza algoritmului beam search
         beamWidth = 4
         topK = 4
         SOS_Token = 0 #Start of sentence
         EOS_Token = 1 #End of sentence
-        with torch.no_grad:
+        with torch.no_grad():
             embededText = self.dictionar(inputs)
 
             lstmOut, (h_n, c_n) = self.lstm(embededText);
-            #intrucat lstmOut.size[1] o sa fie mereu 1 deoarece generam cate un cuvant in parte, il concatenam.
 
             beam = [([],0.0, h_n, c_n)]
 
@@ -58,4 +59,16 @@ class QuestionGenerator(nn.Module):
                             inputTensor = torch.tensor([[SOS_Token]]).to(inputs.device)
                             print("test inputTensor: ", inputTensor)
                         else:
-                            inputTensor = torch.tensor([sentence[-1]])
+                            inputTensor = torch.tensor([sentence[-1]]).unsqueeze(0).to(inputs.device)
+                            embededText = self.dictionar(inputTensor)
+                            #am genrat tokenul initial pe baza dictionarului, urmand sa il modificam utilizand lstm
+
+                            lstmOut, (h_n, c_n) = self.lstm(inputTensor,(h, c))
+
+                            output = self.linear(lstmOut.squeeze(1))
+
+                            probability = F.softmax(output/temperature,1)
+
+                            topKValues, topLIndices = torch.topk(probability, topK, 1)
+
+                            #realizam alegera locala a celor topK probabilitati

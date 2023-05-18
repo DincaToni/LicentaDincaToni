@@ -19,3 +19,4 @@ model(tensor)
 
 #test generare intrebare
 inputTensor = torch.tensor([[2,4,5],[1,3,6],[3,5,3]]).to(dispozitiv)
+outputTensor = model.generate(inputTensor)
